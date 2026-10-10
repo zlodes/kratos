@@ -164,7 +164,7 @@ func (s *Strategy) PopulateSettingsMethod(ctx context.Context, r *http.Request, 
 	sr.UI.SetCSRF(s.d.GenerateCSRFToken(r))
 	for _, l := range linkable {
 		// We do not want to offer to link SSO providers in the settings.
-		if l.Config().OrganizationID != "" {
+		if l.Config().OrganizationID != "" || l.Config().Hidden {
 			continue
 		}
 		sr.UI.GetNodes().Append(NewLinkNode(l.Config().ID, cmp.Or(l.Config().Label, l.Config().ID)))
@@ -179,6 +179,9 @@ func (s *Strategy) PopulateSettingsMethod(ctx context.Context, r *http.Request, 
 		// This means that we're able to remove a connection because it is the last configured credential. If it is
 		// removed, the identity is no longer able to sign in.
 		for _, l := range linked {
+			if l.Config().Hidden {
+				continue
+			}
 			sr.UI.GetNodes().Append(NewUnlinkNode(l.Config().ID, cmp.Or(l.Config().Label, l.Config().ID)))
 		}
 	}

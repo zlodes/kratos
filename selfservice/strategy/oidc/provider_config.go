@@ -185,6 +185,11 @@ type Configuration struct {
 	// the upstream `amr` array. When empty, `amr` does not influence the
 	// session AAL.
 	AAL2AMRValues []string `json:"aal2_amr_values,omitempty"`
+
+	// Hidden prevents the provider from being rendered as a UI node (login,
+	// registration, link and unlink buttons). The provider stays fully
+	// functional: flows can still be submitted with `provider` set to its ID.
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 // AALForClaims returns the session AuthenticatorAssuranceLevel that the

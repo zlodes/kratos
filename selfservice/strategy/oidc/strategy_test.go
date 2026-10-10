@@ -116,6 +116,9 @@ func TestStrategy(t *testing.T) {
 		newOIDCProvider(t, ts, remotePublic, remoteAdmin, "aal2-amr", func(c *oidc.Configuration) {
 			c.AAL2AMRValues = []string{"mfa", "otp"}
 		}),
+		newOIDCProvider(t, ts, remotePublic, remoteAdmin, "hidden", func(c *oidc.Configuration) {
+			c.Hidden = true
+		}),
 		oidc.Configuration{
 			Provider:     "generic",
 			ID:           "invalid-issuer",
@@ -866,6 +869,49 @@ func TestStrategy(t *testing.T) {
 
 			assert.Equal(t, "aal1", gjson.GetBytes(body, "authenticator_assurance_level").String(), "%s", body)
 			assert.Equal(t, "aal1", gjson.GetBytes(body, "authentication_methods.0.aal").String(), "%s", body)
+		})
+	})
+
+	t.Run("case=hidden provider", func(t *testing.T) {
+		subject = "hidden-provider@ory.sh"
+		scope = []string{"openid", "offline"}
+
+		providerNodes := func(c *container.Container) (providers []string) {
+			for _, n := range c.Nodes {
+				if n.ID() == "provider" {
+					providers = append(providers, fmt.Sprint(n.GetValue()))
+				}
+			}
+			return providers
+		}
+
+		t.Run("case=is not rendered", func(t *testing.T) {
+			for name, ui := range map[string]*container.Container{
+				"login/browser":        newBrowserLoginFlow(t, returnTS.URL, time.Minute).UI,
+				"login/api":            newAPILoginFlow(t, returnTS.URL, time.Minute).UI,
+				"registration/browser": newBrowserRegistrationFlow(t, returnTS.URL, time.Minute).UI,
+				"registration/api":     newAPIRegistrationFlow(t, returnTS.URL, time.Minute).UI,
+			} {
+				t.Run("flow="+name, func(t *testing.T) {
+					providers := providerNodes(ui)
+					assert.Contains(t, providers, "valid")
+					assert.NotContains(t, providers, "hidden")
+				})
+			}
+		})
+
+		t.Run("case=should pass registration", func(t *testing.T) {
+			r := newBrowserRegistrationFlow(t, returnTS.URL, time.Minute)
+			res, body := makeRequest(t, "hidden", registerAction(r.ID), url.Values{})
+			assertIdentity(t, res, body)
+			assert.Equal(t, "hidden", gjson.GetBytes(body, "authentication_methods.0.provider").String(), "%s", body)
+		})
+
+		t.Run("case=should pass login", func(t *testing.T) {
+			r := newBrowserLoginFlow(t, returnTS.URL, time.Minute)
+			res, body := makeRequest(t, "hidden", loginAction(r.ID), url.Values{})
+			assertIdentity(t, res, body)
+			assert.Equal(t, "hidden", gjson.GetBytes(body, "authentication_methods.0.provider").String(), "%s", body)
 		})
 	})
 

@@ -637,6 +637,12 @@
           "enum": ["confirm_with_existing_credential", "automatic"],
           "default": "confirm_with_existing_credential"
         },
+        "hidden": {
+          "title": "Hidden",
+          "description": "If true, Ory Kratos does not render UI nodes (login, registration, link and unlink buttons) for this provider. The provider stays fully functional: flows can still be submitted with `provider` set to its ID.",
+          "type": "boolean",
+          "default": false
+        },
         "update_identity_on_login": {
           "title": "Update identity on login",
           "description": "Controls whether the identity is updated from OIDC claims on each login. `never` (default) does not update the identity. `automatic` re-runs the Jsonnet claims mapper on every OIDC login and updates the identity's traits and metadata if they changed.",

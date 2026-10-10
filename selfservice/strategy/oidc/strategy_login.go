@@ -659,7 +659,7 @@ func (s *Strategy) PopulateLoginMethodIdentifierFirstCredentials(r *http.Request
 			lc := l.Config()
 
 			// Organizations are handled differently.
-			if lc.OrganizationID != "" {
+			if lc.OrganizationID != "" || lc.Hidden {
 				continue
 			}
 			AddProvider(f.UI, lc.ID, text.NewInfoLoginWith(cmp.Or(lc.Label, lc.ID), lc.ID), s.ID())

@@ -80,6 +80,9 @@ func TestSettingsStrategy(t *testing.T) {
 		newOIDCProvider(t, publicTS, remotePublic, remoteAdmin, "ory-sso", func(c *oidc.Configuration) {
 			c.OrganizationID = "org-1"
 		}),
+		newOIDCProvider(t, publicTS, remotePublic, remoteAdmin, "ory-hidden", func(c *oidc.Configuration) {
+			c.Hidden = true
+		}),
 		newOIDCProvider(t, publicTS, remotePublic, remoteAdmin, "google"),
 		newOIDCProvider(t, publicTS, remotePublic, remoteAdmin, "github"),
 	)
@@ -253,6 +256,43 @@ func TestSettingsStrategy(t *testing.T) {
 				snapshotx.SnapshotT(t, rs.Ui.Nodes, snapshotx.ExceptPaths("0.attributes.value", "1.attributes.value"))
 			})
 		}
+	})
+
+	t.Run("case=should neither offer to link nor to unlink hidden providers", func(t *testing.T) {
+		e := testhelpers.RandomEmail()
+		users := testhelpers.AddAndLoginIdentities(t, reg, map[string]*identity.Identity{
+			"hidden-linked": {
+				Traits:   identity.Traits(fmt.Sprintf(`{"email":"%s"}`, e)),
+				SchemaID: config.DefaultIdentityTraitsSchemaID,
+				Credentials: map[identity.CredentialsType]identity.Credentials{
+					"password": {
+						Type:        "password",
+						Identifiers: []string{e},
+						Config:      sqlxx.JSONRawMessage(`{"hashed_password":"$argon2id$iammocked...."}`),
+					},
+					identity.CredentialsTypeOIDC: {
+						Type:        identity.CredentialsTypeOIDC,
+						Identifiers: []string{"ory-hidden:" + e, "ory:" + e},
+						Config:      sqlxx.JSONRawMessage(fmt.Sprintf(`{"providers":[{"provider":"ory-hidden","subject":"%s"},{"provider":"ory","subject":"%s"}]}`, e, e)),
+					},
+				},
+			},
+		})
+
+		rs := nprSDK(t, users["hidden-linked"].Client)
+		nodes := map[string][]string{}
+		for _, n := range rs.Ui.Nodes {
+			if n.Group != "oidc" || n.Attributes.UiNodeInputAttributes == nil {
+				continue
+			}
+			attr := n.Attributes.UiNodeInputAttributes
+			nodes[attr.Name] = append(nodes[attr.Name], fmt.Sprint(attr.Value))
+		}
+
+		assert.Contains(t, nodes["link"], "google")
+		assert.NotContains(t, nodes["link"], "ory-hidden")
+		assert.Contains(t, nodes["unlink"], "ory")
+		assert.NotContains(t, nodes["unlink"], "ory-hidden")
 	})
 
 	action := func(req *kratos.SettingsFlow) string {
